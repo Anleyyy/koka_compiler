@@ -1,0 +1,24 @@
+(ocamllex
+ (modules lexer))
+(menhir
+ (modules parser)
+ (flags
+  --explain ; Fournit des explications détaillées sur les erreurs
+  ;--trace   ; Active les traces d'exécution
+  --dump
+
+ ) )
+
+(executable
+ (name kokac)
+ (modes exe)
+ (promote (until-clean)
+          (into ..)
+          (only kokac.exe))
+ (flags ()))
+
+ ;(rule
+ ;(targets parser.automaton)
+ ;(deps parser.mly)
+ ;(action (run menhir --dump --explain parser.mly)))
+ ; Ces lignes créent le fichier .automaton. Ca marche mais ça crée 10000 warnings.
