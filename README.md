@@ -1,5 +1,5 @@
 # Koka-compiler
-Lexer:
+Lexer: \n
 Parser:
 Une fois le parser implémenté à partir des règles de la grammaire définis dans le sujet, le parser renvoyé systématiquement un arbre vide. En effet, l'utilisation de "separated_list(SCOLON,decl) SCOLON*" dans la règle file posait problème puisque tant que l'on avait des tokens SCOLON, menhir essayait de trouver des decl ensuite sans jamais passer à SCOLON*. Ainsi, on a rajouté une règle decl_list qui permet de chercher des decl en priorité. Le même problème est apparu pour les stmt et les block et il a été résolu de la même façon.
 Il reste toujours des conflits mais nous n'avons détecté aucun comportement problématique et l'ordre indiqué dans les règles semble toujours permettre d'avoir le comportement indiqué. Par exemple l'expression return 5 + 8 sera bien comprise comme return (5+8) et non pas (return 5) + 8 en raison de l'ordre dans le fichier parser.mly. En revanche cela apparait toujours comme un conflit. 
