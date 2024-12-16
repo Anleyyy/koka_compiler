@@ -214,7 +214,7 @@ block:
       { let rec test_var_val l = (match l with
       |[] -> failwith "Houston we've got a problem"
       |[t] -> (match t with |Sbexpr a -> [t] |_ -> raise (CError "syntax error, a statement can't be ended by a declaration"))
-      |t::q -> test_var_val q) in
+      |t::q -> t::(test_var_val q)) in
         (*print_endline ("Parsed block with " ^ string_of_int (List.length s) ^ " statements");*) test_var_val s }
   | LBRACE SCOLON* RBRACE
       { (*print_endline "Parsed empty block";*) [] }
@@ -224,7 +224,7 @@ stmt_list:
   | st = stmt
       {[st] }
   | s = stmt_list SCOLON+ st = stmt
-      { s @ [st] }
+      {s @ [st] }
   | stmt stmt
       {raise (CError "syntax error, 2 statements must me separated by a semi colon")}
   | stmt_list SCOLON+ stmt stmt
@@ -261,4 +261,3 @@ ident:
   id = IDENT
     { id }
 ;
-
