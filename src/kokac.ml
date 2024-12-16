@@ -90,11 +90,14 @@ try
   let ast_str = Ast.file_to_string ast in
   Printf.printf "AST:\n%s\n" ast_str;
 
-  (*if !parse_only then (exit 0)
-  else (let typed_ast = Typing.type_file ast in
+  if !parse_only then (exit 0)
+  else 
+    (let typed_ast = Typing.type_file ast in
+    let typed_ast_str = Typed_ast.tfile_to_string typed_ast in
+    Printf.printf "AST:\n%s\n" typed_ast_str;
     if !type_only then (exit 0) else (print_endline "Code production isn't implemented yet"; exit 0)
-  )*)
-   
+  )
+
 with  
 | Lexer.Lexing_error msg ->
   let curr = lexbuf.lex_curr_p in
@@ -110,16 +113,16 @@ with
     Printf.eprintf "File \"%s\", line %d, character %d-%d:\n%s \n"
       (extract_after_last_slash file) start_pos.pos_lnum (start_pos.pos_cnum - start_pos.pos_bol)
       (end_pos.pos_cnum - end_pos.pos_bol) msg; exit 1
-  | GlobalError msg -> 
-    Printf.eprintf "File \"%s\", line 0-0, character 0-0:\n%s \n" msg
-  (*| Ast.Typing_error ((start_pos, end_pos), msg) ->
+  | Ast.GlobalError msg -> 
+    Printf.eprintf "File \"%s\", line 0-0, character 0-0:\n%s \n" (extract_after_last_slash file) msg
+  | Ast.Error ((start_pos, end_pos), msg) ->
     let line = start_pos.pos_lnum in
     let char_start = start_pos.pos_cnum - start_pos.pos_bol in
     let char_end = end_pos.pos_cnum - end_pos.pos_bol in
     let line_end = end_pos.pos_lnum in
     Printf.eprintf "File \"%s\", line %d-%d, characters %d-%d: \nTyping error: %s\n"
       (extract_after_last_slash file) line line_end char_start char_end msg;
-    exit 1*)
+    exit 1
   | Parser.Error ->
     let start_pos = lexbuf.lex_start_p in
     let end_pos = lexbuf.lex_curr_p in
