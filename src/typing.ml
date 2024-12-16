@@ -19,7 +19,7 @@ type total_env =
   mutable post_verif : postverif;
   mutable return_pile : uvaltype list}
 
-exception Debug
+exception Infinite_type of int
 exception TypeNotMatching of string
 exception FakeTypes of string
 exception WrongInput
@@ -58,6 +58,17 @@ let new_weakval () =
   assign_uvaltype (Fixed Vweak) (f_env.next_weakval);
   f_env.next_weakval <- f_env.next_weakval + 1;
   Mutable (f_env.next_weakval - 1)
+
+let rec equal_weakval weakval1 weakval2 =
+  if weakval1 = weakval2 then true else
+  (match uvaltype_of weakval2 with
+  | Mutable w -> 
+    if w = weakval1 then true else equal_weakval weakval1 w
+  | _ -> false) ||
+  (match uvaltype_of weakval1 with
+  | Mutable w -> 
+    if w = weakval2 then true else equal_weakval w weakval2
+  | _ -> false)
 
 let is_predefined_function id = 
   id = "println" || 
@@ -193,7 +204,7 @@ let rec unify_uvaltypes ?(reversed = false) uv1 uv2 =
   | Fixed Vweak, uv | uv, Fixed Vweak -> uv
   | Fixed v1, Fixed v2 -> Fixed (unify_valtypes v1 v2)
   | Mutable weakval1, Mutable weakval2 -> 
-    if weakval1 = weakval2 then 
+    if equal_weakval weakval1 weakval2 then 
       Mutable weakval1
     else
       let uv = unify_uvaltypes (uvaltype_of weakval1) (uvaltype_of weakval2) in
@@ -606,14 +617,17 @@ and compute_type_atom env a =
     let effect = union_ueffect !ueffect_list in
     (Talist !tel, (effect, Ulist uv))
 
-and uvaltype_to_valtype = function
-  | Mutable weakval -> uvaltype_to_valtype (uvaltype_of weakval)
+and uvaltype_to_valtype ?(weakvals = []) = function
+  | Mutable weakval -> 
+    (match List.find_opt (fun x -> x = weakval) weakvals with
+    | None -> uvaltype_to_valtype ~weakvals:(weakval::weakvals) (uvaltype_of weakval)
+    | Some x -> raise (Infinite_type x))
   | Fixed valtype -> valtype
-  | Ulist uvaltype -> Vlist (uvaltype_to_valtype uvaltype)
-  | Umaybe uvaltype -> Vmaybe (uvaltype_to_valtype uvaltype)
+  | Ulist uvaltype -> Vlist (uvaltype_to_valtype ~weakvals:weakvals uvaltype)
+  | Umaybe uvaltype -> Vmaybe (uvaltype_to_valtype ~weakvals:weakvals uvaltype)
   | Uarrow (uvaltypel, ucalctype) -> 
     let l = ref [] in
-    List.iter (fun uvaltype -> l:= [uvaltype_to_valtype uvaltype] @ !l) uvaltypel;
+    List.iter (fun uvaltype -> l:= [uvaltype_to_valtype ~weakvals:weakvals uvaltype] @ !l) uvaltypel;
     Varrow (!l ,ucalctype_to_calctype ucalctype)
 
 and ueffect_to_effect = function
@@ -625,7 +639,8 @@ and ueffect_to_effect = function
     in union_effect [f_effect; effect]
   | Efixed effect -> effect
 
-and ucalctype_to_calctype (ue, uv) = (ueffect_to_effect ue, uvaltype_to_valtype uv)
+and ucalctype_to_calctype ?(weakvals = []) (ue, uv) = 
+  (ueffect_to_effect ue, uvaltype_to_valtype ~weakvals:weakvals uv)
 
 and utyp_to_typ_expr te =
   (*te = {content : te.content; utyp : te.utyp; typ : pas le bon}*)
@@ -729,7 +744,7 @@ and do_post_verif number =
       raise (Error (loc, "identifier" ^ identifier ^ "cannot be resolved"))))) in ())) (Imap.find number f_env.post_verif)
 
 and type_fb loc fun_decl (paraml, annot, e) previous_env = 
-  let env = ref previous_env in
+  let env = ref Smap.empty in
   let param_uvl = ref [] in
   let f_uv = 
     (try match annot with 
@@ -753,8 +768,15 @@ and type_fb loc fun_decl (paraml, annot, e) previous_env =
       env := Smap.add id (param_uv, false) !env;) paraml
   with FakeTypes s -> raise (Error (loc, s)));
     
-  if fun_decl then
-    env := Smap.add f_env.id (Uarrow (!param_uvl, (Emutable Enone, f_uv)), false) !env;
+  Smap.iter (fun id data -> 
+    (match Smap.find_opt id !env with
+      | None -> env := Smap.add id data !env
+      | Some _ -> ()))
+
+    (if fun_decl then 
+      Smap.add f_env.id (Uarrow (!param_uvl, (Emutable Enone, f_uv)), false) previous_env
+    else previous_env);
+  
   let te = type_expr !env e in
   let result_ueffect, result_uvaltype = te.utyp in
   (if fun_decl then (try
@@ -782,7 +804,7 @@ and type_fb loc fun_decl (paraml, annot, e) previous_env =
     do_post_verif 91;
     do_post_verif 11;
     do_post_verif 22);
-  (f_uval, (paraml, annot, new_te))
+  ((if fun_decl then Fixed (uvaltype_to_valtype (f_uval)) else f_uval), (paraml, annot, new_te))
 
 and print_uv uv =
   let v = uvaltype_to_valtype uv in
@@ -797,6 +819,8 @@ and print_ue ue =
 and print_te te =
   let te_str = Typed_ast.texpr_to_string te in
   Printf.printf "%s\n" te_str
+
+(*enlever Printf, print_endline et les 3 fonctions au dessus*)
 
 let type_file file = 
   let env = ref Smap.empty in
