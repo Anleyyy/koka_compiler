@@ -8,7 +8,7 @@ let rec handle_elif bel e =
 match bel with
 | (b0, e0)::[] -> Bif (b0, e0, e)
 | (b0, e0)::s -> Bif (b0, e0, 
-    {content = Ebexpr {content = (handle_elif s e); loc = e.loc}; loc = e.loc})
+    {content = Ebexpr {b_content = (handle_elif s e); loc = e.loc}; loc = e.loc})
 | [] -> failwith "Impossible case"
 %}
 
@@ -147,20 +147,20 @@ catom:
 | a = atom LP el = separated_list(COMMA, expr) RP
     {Acall (a, el)}
 | a = atom DOT id = ident
-    {Acall ({a_content = Aident id; loc = $startpos, $endpos}, [{content = Ebexpr {content = (Batom a); loc = $startpos, $endpos}; loc = $startpos, $endpos}])}
+    {Acall ({a_content = Aident id; loc = $startpos, $endpos}, [{content = Ebexpr {b_content = (Batom a); loc = $startpos, $endpos}; loc = $startpos, $endpos}])}
 | a = atom FN fb = funbody
     {match a.a_content with
     | Acall (a', el) -> 
-      Acall (a', el @ [{content = Ebexpr {content = (Bfn fb); loc = $startpos, $endpos}; loc = $startpos, $endpos}])
-    | _ -> Acall (a, [{content = Ebexpr {content = (Bfn fb); loc = $startpos, $endpos}; loc = $startpos, $endpos}])}
+      Acall (a', el @ [{content = Ebexpr {b_content = (Bfn fb); loc = $startpos, $endpos}; loc = $startpos, $endpos}])
+    | _ -> Acall (a, [{content = Ebexpr {b_content = (Bfn fb); loc = $startpos, $endpos}; loc = $startpos, $endpos}])}
 | a = atom b = block
     {match a.a_content with
     | Acall (a', el) -> 
-      Acall (a', el @ [{content = Ebexpr {content = (Bfn ([], Noannot, {content = Eblock b;
+      Acall (a', el @ [{content = Ebexpr {b_content = (Bfn ([], Noannot, {content = Eblock b;
       loc = $startpos, $endpos})); loc = $startpos, $endpos};
       loc = $startpos, $endpos}])
     | _ -> 
-      Acall (a, [{content = Ebexpr {content = (Bfn ([], Noannot, {content = Eblock b;
+      Acall (a, [{content = Ebexpr {b_content = (Bfn ([], Noannot, {content = Eblock b;
       loc = $startpos, $endpos})); loc = $startpos, $endpos};
       loc = $startpos, $endpos}])}
 | LSQ el = separated_list(COMMA, expr) RSQ
@@ -168,8 +168,8 @@ catom:
 ;
 
 expr:
-  d = cexpr
-    { {content = d; loc = $startpos, $endpos} }
+  c = cexpr
+    { {content = c; loc = $startpos, $endpos} }
 ;
 
 cexpr:
@@ -181,7 +181,7 @@ cexpr:
 
 bexpr:
   c = cbexpr
-  { {content = c; loc = $startpos, $endpos} }
+  { {b_content = c; loc = $startpos, $endpos} }
 
 cbexpr:
 | a = atom
@@ -199,7 +199,7 @@ cbexpr:
 | IF bel = separated_nonempty_list(ELIF, separated_pair(bexpr, THEN, expr))
     {handle_elif bel {content = Eblock []; loc = $startpos, $endpos}}
 | IF b = bexpr RETURN e = expr
-    {Bif (b, {content = Ebexpr ({content = Breturn e; loc = $startpos, $endpos}); loc = $startpos, $endpos}, 
+    {Bif (b, {content = Ebexpr ({b_content = Breturn e; loc = $startpos, $endpos}); loc = $startpos, $endpos}, 
         {content = Eblock []; loc = $startpos, $endpos})}
 | FN fb = funbody
     {Bfn fb}
