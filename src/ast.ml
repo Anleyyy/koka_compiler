@@ -1,9 +1,9 @@
-(* Arbres de syntaxe abstraite de Mini-Python *)
+type loc = Lexing.position * Lexing.position
+type ident = string
 
 exception CError of string
 exception GlobalError of string
-type loc = Lexing.position * Lexing.position
-type ident = string
+exception Error of loc * string
 
 type binop =
   | Badd | Bsub | Bmul | Bdiv | Bmod    (* + - * / % *)
@@ -53,7 +53,7 @@ and cexpr =
   | Eblock of block
   | Ebexpr of bexpr
 
-and bexpr = {content : cbexpr; loc : loc}
+and bexpr = {b_content : cbexpr; loc : loc}
 
 and cbexpr = 
   | Batom of atom
@@ -141,9 +141,9 @@ and stmt_to_string = function
   | Sval (id, e) -> id ^ " = " ^ expr_to_string e
   | Svar (id, e) -> "var " ^ id ^ " = " ^ expr_to_string e
 
-and bexpr_to_string {content; loc} =
+and bexpr_to_string {b_content; loc} =
   let loc_str = loc_to_string loc in
-  match content with
+  match b_content with
   | Batom a -> "atom(" ^ atom_to_string a ^ ")" ^ loc_str
   | Bneg b -> "neg(" ^ bexpr_to_string b ^ ")" ^ loc_str
   | Bnot b -> "not(" ^ bexpr_to_string b ^ ")" ^ loc_str
