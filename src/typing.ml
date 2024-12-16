@@ -196,7 +196,7 @@ let rec unify_valtypes v1 v2 =
     let new_vl = ref [] in
     List.iter2 (fun x y -> new_vl := !new_vl @ [unify_valtypes x y]) vl1 vl2;
     Varrow (!new_vl, result)
-  | _ -> raise (TypeNotMatching "")
+  |a,b -> raise (TypeNotMatching ("This expression has type " ^ (valtype_to_string a) ^ " when it should have type " ^ (valtype_to_string b) ^ "."))
 
 
 let rec unify_uvaltypes ?(reversed = false) uv1 uv2 =
@@ -215,16 +215,16 @@ let rec unify_uvaltypes ?(reversed = false) uv1 uv2 =
   | Umaybe new_uv1, Umaybe new_uv2 -> Umaybe (unify_uvaltypes new_uv1 new_uv2)
   | Uarrow (uvl1, utyp1), Uarrow (uvl2, utyp2) ->
     let n1, n2 = (List.length uvl1, List.length uvl2) in
-    if n1 < n2 then raise (TypeNotMatching "Function has not enough arguments");
-    if n1 > n2 then raise (TypeNotMatching "Function is applied to too many arguments");
+    if n1 < n2 then raise (TypeNotMatching "Wrong number of arguments");
+    if n1 > n2 then raise (TypeNotMatching "Wrong number of arguments");
     let result = unify_ucalctypes utyp1 utyp2 in
     let new_uvl = ref [] in
     let counter = ref 0 in
     List.iter2 (fun x y -> 
       new_uvl := !new_uvl @ [
       try unify_uvaltypes x y
-      with TypeNotMatching _ -> 
-        raise (TypeNotMatching (string_of_int !counter))];
+      with TypeNotMatching o -> 
+        raise (TypeNotMatching ((string_of_int !counter)^" "^o))];
       counter := !counter + 1) uvl1 uvl2;
     Uarrow (!new_uvl, result)
   | Mutable weakval, uv ->
@@ -243,7 +243,7 @@ let rec unify_uvaltypes ?(reversed = false) uv1 uv2 =
     List.iter (fun v -> uvl := !uvl @ [Fixed v]) vl;
     let new_uv1 = Uarrow (!uvl, (Efixed e, Fixed v)) in
     unify_uvaltypes new_uv1 uv2
-  | _ -> raise (TypeNotMatching "")
+  |a,b -> raise (TypeNotMatching ("This expression has type" ^ (uvaltype_to_string a) ^ " when it should have type " ^ (uvaltype_to_string b) ^ ""))
 
 and unify_ueffects ue1 ue2 =
   (match ue1, ue2 with
@@ -445,8 +445,8 @@ and compute_type_bexpr env bexpr =
     (*Règle d'inférence 9*)
     | Beq | Bneq ->
       let uv = (try unify_uvaltypes uv1 uv2
-      with TypeNotMatching _ -> 
-        raise (Error (bexpr.loc, "types do not match =="))) in
+      with TypeNotMatching o -> 
+        raise (Error (bexpr.loc, "types do not match around =="^o))) in
       (if binop = Beq then
         add_post_verif 90 uv bexpr1.loc
       else 
@@ -466,8 +466,8 @@ and compute_type_bexpr env bexpr =
     (*Règle d'inférence 11-12*)
     | Bconcat ->
       let uv = (try unify_uvaltypes uv1 uv2
-      with TypeNotMatching _ -> 
-        raise (Error (bexpr.loc, "types do not match ++"))) in
+      with TypeNotMatching o -> 
+        raise (Error (bexpr.loc, "types do not match around the operator ++ : "^o^ " Those types should both be string or 'a list"))) in
       add_post_verif 11 uv bexpr1.loc;
       (Tbbinop (binop, tbexpr1, tbexpr2), (union_ueffect [ue1; ue2], uv)))
 
@@ -480,8 +480,8 @@ and compute_type_bexpr env bexpr =
     with Not_found -> raise (Error (bexpr.loc, "variable " ^ id ^ " does not exist"))) in
     if is_var then
       let _ = (try unify_uvaltypes uv current_uv
-      with TypeNotMatching _ -> 
-        raise (Error (new_bexpr.loc, "types do not match :="))) in
+      with TypeNotMatching o -> 
+        raise (Error (new_bexpr.loc, "types do not match around :="^o))) in
       (Tbassign (id, tbexpr), (ue, Fixed Vunit))
     else raise (Error (bexpr.loc, "variable " ^ id ^ " is not mutable"))
 
@@ -494,11 +494,11 @@ and compute_type_bexpr env bexpr =
     let ue2, uv2 = te2.utyp in
     let ue3, uv3 = te3.utyp in
     let _ = (try unify_uvaltypes (Fixed Vbool) uv1
-      with TypeNotMatching _ -> 
-        raise (Error (e1.loc, "expression should have type bool"))) in
+      with TypeNotMatching o -> 
+        raise (Error (e1.loc, "this expression should have type bool"))) in
     let uv = (try unify_uvaltypes uv2 uv3
-      with TypeNotMatching _ -> 
-        raise (Error (bexpr.loc, "types do not match if"))) in
+      with TypeNotMatching o -> 
+        raise (Error (bexpr.loc, "types do not match around if"^o))) in
     (Tbif (te1, te2, te3), (union_ueffect [ue1; ue2; ue3], uv))
 
   (*Règles d'inférence 20-21*)
@@ -516,8 +516,8 @@ and compute_type_bexpr env bexpr =
     let te = type_expr env e in
     let ue, uv = te.utyp in
     let _ = (try unify_uvaltypes uv (match f_env.return_pile with x::s -> x | [] -> failwith "Impossible case")
-      with TypeNotMatching _ -> 
-        raise (Error (e.loc, "types do not match return"))) in
+      with TypeNotMatching o -> 
+        raise (Error (e.loc, "types do not match after return"^o))) in
     (Tbreturn te, (ue, new_weakval ()))
 
 and compute_type_atom env a = 
@@ -567,7 +567,7 @@ and compute_type_atom env a =
         with Predefinedf s -> 
           (match int_of_string_opt s with
           | None -> raise (Error (a.loc, s))
-          | Some n -> raise (Error (List.nth !loc_list n, "types do not match function call"))))
+          | Some n -> raise (Error (List.nth !loc_list n, s))))
       | _ -> type_atom env new_a) in
     let ue, uv = ta.a_utyp in
 
@@ -583,9 +583,22 @@ and compute_type_atom env a =
       (try 
         unify_uvaltypes expected_uv uv
       with TypeNotMatching s ->
-        (match int_of_string_opt s with
+        (let split_on_first_space s =
+          try
+            let idx = String.index s ' ' in
+            let first_part = String.sub s 0 idx in
+            let second_part = String.sub s (idx + 1) (String.length s - idx - 1) in
+            (first_part, second_part)
+          with
+          | Not_found -> (s, "") in
+
+        let alpha,o = split_on_first_space s in
+
+
+
+          match int_of_string_opt alpha with
         | None -> raise (Error (a.loc, s))
-        | Some n -> raise (Error (List.nth !loc_list n, "types do not match parameter call")))) in
+        | Some n -> raise (Error (List.nth !loc_list n, "types do not match on the "^ (string_of_int (n+1)) ^"th argument. "^o)))) in
     let return_ue, return_uv = return_ucalctype_of unified_uv in
     if !is_println_call then add_post_verif 22 return_uv !loc_dernier_arg;
     (Tacall (ta, !tel), (union_ueffect ([ue; return_ue] @ !ueffect_list), return_uv))
@@ -782,7 +795,7 @@ and type_fb loc fun_decl (paraml, annot, e) previous_env =
   (if fun_decl then (try
     let _ = List.find (fun x -> x = ueffect_to_effect result_ueffect) f_env.expected_effect in ()
   with
-    Not_found -> raise (Error (e.loc, "types do not match result effect"))));
+    Not_found -> raise (Error (e.loc, "types do not match wrong effect"))));
   (if not fun_decl then 
     let effect = ueffect_to_effect result_ueffect in
     let expected_effect = 
@@ -790,11 +803,11 @@ and type_fb loc fun_decl (paraml, annot, e) previous_env =
       | Noannot -> effect
       | Annot (ident_list, _) -> union_effect (effect_list_of_ident_list ident_list)) in
     if not (expected_effect = effect) then 
-      raise (Error (e.loc, "types do not match result effect")));
+      raise (Error (e.loc, "types do not match, wrong effect, the expected effect is " ^ (effect_to_string expected_effect) ^ " and we have " ^ (effect_to_string effect) ^ ".")));
   (try
     let _ = unify_uvaltypes result_uvaltype (f_uv) in ()
-  with TypeNotMatching _ -> 
-    raise (Error (e.loc, "types do not match result val")));
+  with TypeNotMatching o-> 
+    raise (Error (e.loc, "types do not match"^o)));
   let result_ucalctype = (result_ueffect, result_uvaltype) in
   let f_uval = Uarrow (!param_uvl, result_ucalctype) in 
   let new_te = 
@@ -840,6 +853,22 @@ let type_file file =
     env := Smap.add f (f_uval, false) !env;
     tfile := !tfile @ [(f, tfb)];) file;
   if not !main then 
-    raise (GlobalError "no function main")
+    raise (GlobalError "Typing error : no function main")
   else
     !tfile
+
+
+    (*
+type ucalctype = ueffect * uvaltype 
+
+and uvaltype =
+  | Mutable of weakval
+  | Fixed of valtype
+  | Ulist of uvaltype
+  | Umaybe of uvaltype
+  | Uarrow of uvaltype list * ucalctype
+
+and ueffect = 
+  | Efixed of effect 
+  | Emutable of effect
+    *)
