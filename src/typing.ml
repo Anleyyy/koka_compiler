@@ -193,10 +193,13 @@ let rec unify_uvaltypes ?(reversed = false) uv1 uv2 =
   | Fixed Vweak, uv | uv, Fixed Vweak -> uv
   | Fixed v1, Fixed v2 -> Fixed (unify_valtypes v1 v2)
   | Mutable weakval1, Mutable weakval2 -> 
-    let uv = unify_uvaltypes (uvaltype_of weakval1) (uvaltype_of weakval2) in
-    assign_uvaltype uv weakval1;
-    assign_uvaltype (Mutable weakval1) weakval2;
-    Mutable weakval1
+    if weakval1 = weakval2 then 
+      Mutable weakval1
+    else
+      let uv = unify_uvaltypes (uvaltype_of weakval1) (uvaltype_of weakval2) in
+      assign_uvaltype uv weakval1;
+      assign_uvaltype (Mutable weakval1) weakval2;
+      Mutable weakval1
   | Ulist new_uv1, Ulist new_uv2 -> Ulist (unify_uvaltypes new_uv1 new_uv2)
   | Umaybe new_uv1, Umaybe new_uv2 -> Umaybe (unify_uvaltypes new_uv1 new_uv2)
   | Uarrow (uvl1, utyp1), Uarrow (uvl2, utyp2) ->
@@ -753,16 +756,22 @@ and type_fb loc fun_decl (paraml, annot, e) previous_env =
   if fun_decl then
     env := Smap.add f_env.id (Uarrow (!param_uvl, (Emutable Enone, f_uv)), false) !env;
   let te = type_expr !env e in
-  print_te te;
   let result_ueffect, result_uvaltype = te.utyp in
   (if fun_decl then (try
-    let _ = Printf.printf "%s\n" f_env.id; print_ue result_ueffect; List.find (fun x -> x = ueffect_to_effect result_ueffect) f_env.expected_effect in ()
+    let _ = List.find (fun x -> x = ueffect_to_effect result_ueffect) f_env.expected_effect in ()
   with
     Not_found -> raise (Error (e.loc, "types do not match result effect"))));
+  (if not fun_decl then 
+    let effect = ueffect_to_effect result_ueffect in
+    let expected_effect = 
+      (match annot with
+      | Noannot -> effect
+      | Annot (ident_list, _) -> union_effect (effect_list_of_ident_list ident_list)) in
+    if not (expected_effect = effect) then 
+      raise (Error (e.loc, "types do not match result effect")));
   (try
     let _ = unify_uvaltypes result_uvaltype (f_uv) in ()
   with TypeNotMatching _ -> 
-    print_uv result_uvaltype; print_uv (f_uv);
     raise (Error (e.loc, "types do not match result val")));
   let result_ucalctype = (result_ueffect, result_uvaltype) in
   let f_uval = Uarrow (!param_uvl, result_ucalctype) in 
