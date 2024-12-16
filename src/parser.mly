@@ -66,8 +66,10 @@ match bel with
 /* Règles de grammaire */
 
 file:
-  SCOLON* dl = decl_list SCOLON* EOF /* modification dde separated_list par separated_nonempty_list*/ /*ajout de SCOLON* à la fin */
+  |SCOLON* dl = decl_list SCOLON* EOF /* modification dde separated_list par separated_nonempty_list*/ /*ajout de SCOLON* à la fin */
     { dl }
+  |SCOLON* EOF 
+    {[]}
 ;
 
 decl_list:
@@ -205,6 +207,12 @@ cbexpr:
     {Bfn fb}
 | RETURN e = expr
     {Breturn e}
+| binop
+    {raise (CError "syntax error, a binary operator should separate 2 expressions") }
+| NEGATE 
+    {raise (CError "syntax error, the operator ~ should precedes an expression")}
+| NOT 
+    {raise (CError "syntax error, the operator ! should precedes an expression")}
 ;
 
 
