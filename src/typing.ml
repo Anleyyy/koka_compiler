@@ -819,6 +819,8 @@ and type_fb loc fun_decl (paraml, annot, e) previous_env =
     do_post_verif 22);
   ((if fun_decl then Fixed (uvaltype_to_valtype (f_uval)) else f_uval), (paraml, annot, new_te))
 
+(* Fonctions de débuggage *)
+
 and print_uv uv =
   let v = uvaltype_to_valtype uv in
   let v_str = Typed_ast.valtype_to_string v in
@@ -833,8 +835,7 @@ and print_te te =
   let te_str = Typed_ast.texpr_to_string te in
   Printf.printf "%s\n" te_str
 
-(*enlever Printf, print_endline et les 3 fonctions au dessus*)
-
+(* Fonction principale *)
 let type_file file = 
   let env = ref Smap.empty in
   let tfile = ref [] in
@@ -856,19 +857,3 @@ let type_file file =
     raise (GlobalError "Typing error : no function main")
   else
     !tfile
-
-
-    (*
-type ucalctype = ueffect * uvaltype 
-
-and uvaltype =
-  | Mutable of weakval
-  | Fixed of valtype
-  | Ulist of uvaltype
-  | Umaybe of uvaltype
-  | Uarrow of uvaltype list * ucalctype
-
-and ueffect = 
-  | Efixed of effect 
-  | Emutable of effect
-    *)
