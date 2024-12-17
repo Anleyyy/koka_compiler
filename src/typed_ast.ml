@@ -112,6 +112,28 @@ and valtype_to_string = function
     str := String.sub !str 0 ((String.length !str) - 2));
     !str ^ ") -> " ^ (calctype_to_string c)
 
+and uvaltype_to_string = function
+  | Mutable w -> "'a"
+  | Fixed v -> valtype_to_string v
+  | Ulist u -> (uvaltype_to_string u) ^ " list"
+  | Umaybe u -> (uvaltype_to_string u) ^ " maybe"
+  | Uarrow (l,uc) -> 
+      let rec f p = match p with
+                |[] -> []
+                |t::q -> (uvaltype_to_string t)::(f q) in
+      ((String.concat " -> " (f l)) ^ " -> " ^ (ucalctype_to_string uc))
+  
+and ucalctype_to_string uc = 
+  let ue,uv = uc in
+  ("(" ^ (ueffect_to_string ue) ^ "," ^ (uvaltype_to_string uv) ^ ")")
+
+
+
+and ueffect_to_string ue = 
+  match ue with 
+  |Efixed x -> effect_to_string x
+  |Emutable x -> (effect_to_string x) ^ " U 'e"
+
 and effect_to_string e =
   match e with
   | Enone -> "<>"
