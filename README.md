@@ -42,7 +42,7 @@ Au cours du typage de la déclaration d'une fonction f de type fun, on conserve 
 - f_env.return_pile : une pile dont l'élément du dessus correspond au type de retour de la fonction la plus profonde dans laquelle on se situe  
 
 Tout au long du typage d'une fonction, on utilise uniquement le type ucalctype et on décore l'ast avec les types de type ucalctype. C'est le rôle des fonctions type_expr, type_bexpr et type_atom qui parcourent l'arbre en appliquant les règles d'inférence.  
-Une fois qu'on a traité une déclaration de fonction, les types qui devaient être inférés l'ont été. On parcours alors à nouveau l'ast en décorant cette fois ci l'ast avec les types de type calctype que l'on obtient à partir du type ucalctype.  
+Une fois qu'on a traité une déclaration de fonction, les types qui devaient être inférés l'ont été. On parcours alors à nouveau l'ast en décorant cette fois ci l'ast avec les types de type calctype que l'on obtient à partir du type ucalctype. Ce second parcours est effectué par les fonctions utyp_to_typ_expr, utyp_to_typ_bexpr et utyp_to_typ_atom.
 
 Choix effectués :
 
