@@ -1,14 +1,9 @@
-(* Analyseur lexical pour mini-Turtle *)
-
 {
   open Lexing
   open Parser
 
-  (* exception à lever pour signaler une erreur lexicale *)
   exception Lexing_error of string
   type next_tokens_output = Token of token list | Updatestack of int | Updatestackend
-  (* note : penser à appeler la fonction Lexing.new_line
-     à chaque retour chariot (caractère '\n') *)
 
   let id_or_kwd = 
   let h = Hashtbl.create 32 in
@@ -174,7 +169,7 @@ and string = parse
 {
 
   let next_token =
-    let tokens = Queue.create () in (* prochains lexèmes à renvoyer *)
+    let tokens = Queue.create () in
     fun lb ->
       if Queue.is_empty tokens then begin
 
